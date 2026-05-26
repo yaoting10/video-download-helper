@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Video Download Helper</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Detected Media</h1>
+        <p id="service-state">Checking local service...</p>
+      </div>
+      <button id="refresh" title="Refresh">↻</button>
+    </header>
+
+    <main>
+      <section id="empty" hidden>
+        <p>No media detected on this tab yet.</p>
+      </section>
+
+      <section id="candidates"></section>
+    </main>
+
+    <footer>
+      <button id="clear">Clear</button>
+      <a href="http://127.0.0.1:17321/api/jobs" target="_blank">Jobs</a>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

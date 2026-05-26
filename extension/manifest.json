@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Video Download Helper MVP",
+  "version": "0.1.0",
+  "description": "Detects page media URLs and sends download jobs to the local yt-dlp service.",
+  "permissions": [
+    "cookies",
+    "storage",
+    "tabs",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "http://127.0.0.1:17321/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "Video Download Helper"
+  }
+}

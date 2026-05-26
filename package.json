@@ -1,0 +1,14 @@
+{
+  "name": "video-download-helper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "start": "node service/src/server.js",
+    "check": "node --check service/src/server.js && node --check service/src/downloader.js && node --check service/src/jobs.js && node --check service/src/media.js && node --check service/src/progress.js && node --check extension/src/background.js && node --check extension/src/popup.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
