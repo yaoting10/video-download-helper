@@ -103,9 +103,13 @@ function renderCandidate(candidate) {
   download.className = 'primary';
   const job = jobsByCandidateId.get(candidate.id);
   download.textContent = job ? labelForJob(job) : 'Download';
-  download.disabled = Boolean(job && ['queued', 'running', 'completed'].includes(job.status));
+  download.disabled = Boolean(job && ['queued', 'running', 'paused', 'completed'].includes(job.status));
   download.addEventListener('click', () => startDownload(candidate, download));
   actions.append(download);
+
+  if (job) {
+    actions.append(...renderJobControls(candidate.id, job));
+  }
 
   item.append(title, url, meta, actions);
   if (job) {
@@ -182,6 +186,54 @@ async function refreshJob(job) {
   }
 }
 
+function renderJobControls(candidateId, job) {
+  const controls = [];
+
+  if (job.status === 'running') {
+    controls.push(createControlButton('Pause', () => controlJob(candidateId, job, 'pause')));
+  }
+
+  if (job.status === 'paused') {
+    controls.push(createControlButton('Resume', () => controlJob(candidateId, job, 'resume'), 'primary'));
+  }
+
+  if (['queued', 'running', 'paused'].includes(job.status)) {
+    controls.push(createControlButton('Stop', () => controlJob(candidateId, job, 'stop'), 'danger'));
+  }
+
+  return controls;
+}
+
+function createControlButton(label, onClick, variant = '') {
+  const button = document.createElement('button');
+  button.textContent = label;
+  if (variant) {
+    button.className = variant;
+  }
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+async function controlJob(candidateId, job, action) {
+  try {
+    const response = await fetch(`${SERVICE_URL}/api/jobs/${encodeURIComponent(job.id)}/${action}`, {
+      method: 'POST'
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    jobsByCandidateId.set(candidateId, payload.job);
+    render();
+    if (['resume'].includes(action)) {
+      startPolling();
+    }
+  } catch (error) {
+    stateEl.textContent = error.message;
+  }
+}
+
 function renderProgress(job) {
   const progress = job.progress || { percent: 0, statusText: job.status };
   const percent = Math.max(0, Math.min(100, Number(progress.percent) || 0));
@@ -221,7 +273,8 @@ function renderProgress(job) {
 
 function labelForJob(job) {
   if (job.status === 'completed') return 'Done';
-  if (job.status === 'failed') return 'Retry';
+  if (['failed', 'stopped'].includes(job.status)) return 'Retry';
+  if (job.status === 'paused') return 'Paused';
   return 'Downloading';
 }
 

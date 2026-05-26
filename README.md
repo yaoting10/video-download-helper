@@ -68,6 +68,14 @@ List jobs:
 curl http://127.0.0.1:17321/api/jobs
 ```
 
+Pause, resume, or stop a job:
+
+```bash
+curl -X POST http://127.0.0.1:17321/api/jobs/<job-id>/pause
+curl -X POST http://127.0.0.1:17321/api/jobs/<job-id>/resume
+curl -X POST http://127.0.0.1:17321/api/jobs/<job-id>/stop
+```
+
 Create a download:
 
 ```bash
@@ -106,7 +114,9 @@ The extension forwards:
 - DRM-protected streams are intentionally unsupported.
 - Some sites hide tokens in JavaScript, service workers, iframes, or short-lived signed URLs. Those may need site-specific handling.
 - The in-memory job list resets when the local service restarts.
-- This MVP queues downloads but does not yet provide pause, cancel, retry, or detailed progress UI.
+- The in-popup controls support pause, resume, stop, and retry, but the job list is still in memory only.
+- Pause/resume uses POSIX process signals (`SIGSTOP` and `SIGCONT`), so it is currently intended for macOS and Linux.
+- Stop terminates the active `yt-dlp` process with `SIGTERM`; partially downloaded files may remain in the download folder.
 
 ## Development
 

@@ -13,6 +13,14 @@ test('tracks queued, running, completed, and failed job states', () => {
   assert.equal(store.get(job.id).status, 'running');
   assert.equal(store.get(job.id).pid, 1234);
 
+  store.markPaused(job.id);
+  assert.equal(store.get(job.id).status, 'paused');
+  assert.equal(store.get(job.id).progress.statusText, 'Paused');
+
+  store.markRunning(job.id, 1234);
+  assert.equal(store.get(job.id).status, 'running');
+  assert.equal(store.get(job.id).progress.statusText, 'Running');
+
   store.appendLog(job.id, '50%');
   assert.deepEqual(store.get(job.id).logs, ['50%']);
 
@@ -25,6 +33,11 @@ test('tracks queued, running, completed, and failed job states', () => {
     statusText: '42.5% 1.2MiB/s ETA 00:10'
   });
 
+  store.markPaused(job.id);
+  store.markRunning(job.id, 1234);
+  assert.equal(store.get(job.id).progress.percent, 42.5);
+  assert.equal(store.get(job.id).progress.statusText, 'Running');
+
   store.markCompleted(job.id, 0);
   assert.equal(store.get(job.id).status, 'completed');
   assert.equal(store.get(job.id).progress.percent, 100);
@@ -34,5 +47,11 @@ test('tracks queued, running, completed, and failed job states', () => {
   store.markFailed(failed.id, 'boom', 1);
   assert.equal(store.get(failed.id).status, 'failed');
   assert.equal(store.get(failed.id).error, 'boom');
-  assert.equal(store.list().length, 2);
+
+  const stopped = store.create({ url: 'https://example.com/stop.mp4' });
+  store.markStopped(stopped.id);
+  assert.equal(store.get(stopped.id).status, 'stopped');
+  assert.equal(store.get(stopped.id).progress.statusText, 'Stopped');
+
+  assert.equal(store.list().length, 3);
 });

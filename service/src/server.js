@@ -2,6 +2,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
+import { DownloadController } from './controller.js';
 import { startDownload } from './downloader.js';
 import { JobStore } from './jobs.js';
 import { normalizeCandidate } from './media.js';
@@ -11,9 +12,11 @@ const OUTPUT_DIR = process.env.DOWNLOAD_DIR || path.join(os.homedir(), 'Download
 const YT_DLP_PATH = process.env.YT_DLP_PATH || 'yt-dlp';
 
 const store = new JobStore();
+const controller = new DownloadController(store);
 
 export function createServer(options = {}) {
   const jobStore = options.store || store;
+  const downloadController = options.controller || controller;
   const outputDir = options.outputDir || OUTPUT_DIR;
   const ytDlpPath = options.ytDlpPath || YT_DLP_PATH;
 
@@ -50,6 +53,14 @@ export function createServer(options = {}) {
         return;
       }
 
+      const jobAction = matchJobAction(url.pathname);
+      if (request.method === 'POST' && jobAction) {
+        const { id, action } = jobAction;
+        const job = applyJobAction(downloadController, id, action);
+        sendJson(response, 200, { job });
+        return;
+      }
+
       if (request.method === 'POST' && url.pathname === '/api/downloads') {
         const body = await readJson(request);
         const candidate = normalizeCandidate(body);
@@ -58,7 +69,7 @@ export function createServer(options = {}) {
           ytDlpPath,
           format: body.format || 'best',
           remux: body.remux || 'mp4'
-        }, jobStore);
+        }, jobStore, downloadController);
 
         sendJson(response, 202, { job });
         return;
@@ -69,6 +80,28 @@ export function createServer(options = {}) {
       sendJson(response, 400, { error: error.message });
     }
   });
+}
+
+function matchJobAction(pathname) {
+  const match = pathname.match(/^\/api\/jobs\/([^/]+)\/(pause|resume|stop)$/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    id: decodeURIComponent(match[1]),
+    action: match[2]
+  };
+}
+
+function applyJobAction(downloadController, id, action) {
+  if (action === 'pause') {
+    return downloadController.pause(id);
+  }
+  if (action === 'resume') {
+    return downloadController.resume(id);
+  }
+  return downloadController.stop(id);
 }
 
 function setCorsHeaders(response) {

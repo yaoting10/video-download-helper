@@ -59,7 +59,7 @@ export function buildYtDlpArgs({ url, title, outputDir, headers = {}, format = '
   return args;
 }
 
-export async function startDownload(candidate, options, store) {
+export async function startDownload(candidate, options, store, controller = null) {
   const outputDir = path.resolve(options.outputDir);
   await mkdir(outputDir, { recursive: true });
 
@@ -85,6 +85,7 @@ export async function startDownload(candidate, options, store) {
   });
 
   store.markRunning(job.id, child.pid);
+  controller?.register(job.id, child);
 
   child.stdout.on('data', (chunk) => {
     for (const line of splitLines(chunk)) {
@@ -101,10 +102,16 @@ export async function startDownload(candidate, options, store) {
   });
 
   child.on('error', (error) => {
+    controller?.unregister(job.id);
     store.markFailed(job.id, error.message);
   });
 
   child.on('close', (code) => {
+    controller?.unregister(job.id);
+    if (store.get(job.id)?.status === 'stopped') {
+      return;
+    }
+
     if (code === 0) {
       store.markCompleted(job.id, code);
     } else {

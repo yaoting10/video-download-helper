@@ -41,7 +41,15 @@ export class JobStore {
   }
 
   markRunning(id, pid) {
-    this.patch(id, { status: 'running', pid });
+    const job = this.require(id);
+    this.patch(id, {
+      status: 'running',
+      pid,
+      progress: {
+        ...job.progress,
+        statusText: 'Running'
+      }
+    });
   }
 
   appendLog(id, line) {
@@ -60,6 +68,27 @@ export class JobStore {
         percent,
         statusText: progress.statusText || `${percent}%`
       }
+    });
+  }
+
+  markPaused(id) {
+    this.patch(id, {
+      status: 'paused',
+      progress: {
+        ...this.require(id).progress,
+        statusText: 'Paused'
+      }
+    });
+  }
+
+  markStopped(id) {
+    this.patch(id, {
+      status: 'stopped',
+      progress: {
+        ...this.require(id).progress,
+        statusText: 'Stopped'
+      },
+      finishedAt: new Date().toISOString()
     });
   }
 
