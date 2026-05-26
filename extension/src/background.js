@@ -49,6 +49,8 @@ chrome.webRequest.onResponseStarted.addListener(
       requestHeaders
     });
 
+    const previewMetadata = await getVideoPreviewMetadata(details.tabId, tab);
+
     addCandidate(details.tabId, {
       id: `${details.requestId}:${details.url}`,
       url: details.url,
@@ -56,6 +58,7 @@ chrome.webRequest.onResponseStarted.addListener(
       tabTitle: tab?.title || 'video',
       contentType,
       headers,
+      ...previewMetadata,
       discoveredAt: new Date().toISOString()
     });
   },
@@ -144,6 +147,60 @@ async function getTab(tabId) {
   } catch {
     return null;
   }
+}
+
+async function getVideoPreviewMetadata(tabId, tab) {
+  try {
+    const metadata = await chrome.tabs.sendMessage(tabId, { type: 'getVideoPreviewMetadata' });
+    if (metadata?.previewImageUrl || !metadata?.previewRect || !tab?.windowId) {
+      return metadata || {};
+    }
+
+    return {
+      ...metadata,
+      previewImageUrl: await capturePreviewRect(tab.windowId, metadata.previewRect, metadata.viewport)
+    };
+  } catch {
+    return {};
+  }
+}
+
+async function capturePreviewRect(windowId, rect, viewport) {
+  try {
+    const dataUrl = await chrome.tabs.captureVisibleTab(windowId, {
+      format: 'jpeg',
+      quality: 70
+    });
+    return await cropDataUrl(dataUrl, rect, viewport);
+  } catch {
+    return '';
+  }
+}
+
+async function cropDataUrl(dataUrl, rect, viewport) {
+  const response = await fetch(dataUrl);
+  const bitmap = await createImageBitmap(await response.blob());
+  const scaleX = viewport?.width ? bitmap.width / viewport.width : 1;
+  const scaleY = viewport?.height ? bitmap.height / viewport.height : scaleX;
+  const sx = Math.max(0, Math.round(rect.x * scaleX));
+  const sy = Math.max(0, Math.round(rect.y * scaleY));
+  const sw = Math.max(1, Math.min(bitmap.width - sx, Math.round(rect.width * scaleX)));
+  const sh = Math.max(1, Math.min(bitmap.height - sy, Math.round(rect.height * scaleY)));
+  const canvas = new OffscreenCanvas(320, Math.max(1, Math.round((sh / sw) * 320)));
+  const context = canvas.getContext('2d');
+  context.drawImage(bitmap, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.74 });
+  return await blobToDataUrl(blob);
+}
+
+async function blobToDataUrl(blob) {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return `data:${blob.type};base64,${btoa(binary)}`;
 }
 
 function headersArrayToObject(headers) {

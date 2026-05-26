@@ -3,11 +3,11 @@
 }
 
 body {
-  width: 380px;
+  width: 560px;
   min-height: 280px;
   margin: 0;
-  color: #17211f;
-  background: #f7faf8;
+  color: #e8edf2;
+  background: #2b2c31;
   font: 13px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -18,11 +18,11 @@ footer {
   justify-content: space-between;
   gap: 12px;
   padding: 12px;
-  border-bottom: 1px solid #d9e2dd;
+  border-bottom: 1px solid #3c3e45;
 }
 
 footer {
-  border-top: 1px solid #d9e2dd;
+  border-top: 1px solid #3c3e45;
   border-bottom: 0;
 }
 
@@ -38,7 +38,7 @@ h1 {
 
 #service-state {
   margin-top: 2px;
-  color: #53635f;
+  color: #aeb6bf;
   font-size: 12px;
 }
 
@@ -49,23 +49,39 @@ main {
 
 #empty {
   padding: 28px 16px;
-  color: #53635f;
+  color: #aeb6bf;
   text-align: center;
 }
 
 .candidate {
+  position: relative;
   display: grid;
-  gap: 8px;
-  padding: 12px;
-  border-bottom: 1px solid #d9e2dd;
-  background: #ffffff;
+  grid-template-columns: 160px minmax(0, 1fr) 22px;
+  gap: 10px;
+  align-items: stretch;
+  margin: 8px;
+  padding: 8px;
+  border: 1px solid #41434b;
+  border-radius: 8px;
+  background: #181a1f;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 45%);
 }
 
 .candidate-title {
   overflow: hidden;
-  font-weight: 650;
+  color: #dce3ea;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.2;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+}
+
+.candidate-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
 }
 
 .candidate-url {
@@ -74,29 +90,81 @@ main {
   font-size: 12px;
 }
 
-.candidate-meta {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  color: #53635f;
-  font-size: 12px;
+.badge {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 1px solid #159ce8;
+  border-radius: 4px;
+  color: #dff5ff;
+  background: #10253a;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
 }
 
-.badge {
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #064e3b;
-  background: #ccfbf1;
-  font-weight: 700;
-  text-transform: uppercase;
+.candidate-body {
+  display: grid;
+  align-content: space-between;
+  gap: 12px;
+  min-width: 0;
 }
 
 .actions {
   display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
+.thumbnail {
+  position: relative;
+  overflow: hidden;
+  min-height: 90px;
+  border: 1px solid #050607;
+  border-radius: 8px;
+  background: #090a0c;
+}
+
+.thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 90px;
+  object-fit: cover;
+}
+
+.thumbnail::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(180deg, transparent 50%, rgb(0 0 0 / 54%) 100%);
+}
+
+.thumbnail-placeholder {
+  display: grid;
+  min-height: 90px;
+  place-items: center;
+  color: #7d8792;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.duration {
+  position: absolute;
+  left: 8px;
+  bottom: 7px;
+  z-index: 1;
+  padding: 2px 5px;
+  border-radius: 6px;
+  color: #dfe7ef;
+  background: rgb(0 0 0 / 55%);
+  font-size: 15px;
+  line-height: 1.1;
+}
+
 .progress-panel {
+  grid-column: 1 / -1;
   display: grid;
   gap: 5px;
 }
@@ -106,7 +174,7 @@ main {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: #53635f;
+  color: #aeb6bf;
   font-size: 12px;
 }
 
@@ -115,7 +183,7 @@ main {
   height: 8px;
   overflow: hidden;
   border-radius: 4px;
-  background: #d9e2dd;
+  background: #41434b;
 }
 
 .progress-fill {
@@ -132,20 +200,22 @@ main {
 
 button,
 a {
-  border: 1px solid #aebdb8;
-  border-radius: 6px;
+  border: 1px solid #4d515b;
+  border-radius: 8px;
   padding: 6px 10px;
-  color: #17211f;
-  background: #ffffff;
+  color: #e8edf2;
+  background: #2b2e35;
   cursor: pointer;
   font: inherit;
   text-decoration: none;
 }
 
 button.primary {
-  border-color: #0f766e;
-  color: #ffffff;
-  background: #0f766e;
+  border-color: #16a7eb;
+  color: #071016;
+  background: #1aa8ea;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 button.danger {
@@ -157,4 +227,15 @@ button.danger {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.icon-button {
+  align-self: start;
+  justify-self: end;
+  border: 0;
+  padding: 0 4px;
+  color: #8d939d;
+  background: transparent;
+  font-size: 32px;
+  line-height: 1;
 }

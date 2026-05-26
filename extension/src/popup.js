@@ -1,3 +1,5 @@
+import { formatDuration, summarizeCandidate } from './preview-model.js';
+
 const SERVICE_URL = 'http://127.0.0.1:17321';
 
 const stateEl = document.querySelector('#service-state');
@@ -80,25 +82,27 @@ function renderCandidate(candidate) {
   const item = document.createElement('article');
   item.className = 'candidate';
 
+  const summary = summarizeCandidate(candidate);
+  const thumbnail = renderThumbnail(candidate);
+
+  const body = document.createElement('div');
+  body.className = 'candidate-body';
+
   const title = document.createElement('div');
   title.className = 'candidate-title';
-  title.textContent = candidate.tabTitle || 'video';
+  title.title = summary.title;
+  title.textContent = summary.title;
 
-  const url = document.createElement('div');
-  url.className = 'candidate-url';
-  url.textContent = candidate.url;
-
-  const meta = document.createElement('div');
-  meta.className = 'candidate-meta';
+  const titleRow = document.createElement('div');
+  titleRow.className = 'candidate-title-row';
   const badge = document.createElement('span');
   badge.className = 'badge';
-  badge.textContent = inferType(candidate);
-  const time = document.createElement('span');
-  time.textContent = new Date(candidate.discoveredAt).toLocaleTimeString();
-  meta.append(badge, time);
+  badge.textContent = summary.format;
+  titleRow.append(badge, title);
 
   const actions = document.createElement('div');
   actions.className = 'actions';
+
   const download = document.createElement('button');
   download.className = 'primary';
   const job = jobsByCandidateId.get(candidate.id);
@@ -111,11 +115,51 @@ function renderCandidate(candidate) {
     actions.append(...renderJobControls(candidate.id, job));
   }
 
-  item.append(title, url, meta, actions);
+  const remove = document.createElement('button');
+  remove.className = 'icon-button';
+  remove.textContent = '×';
+  remove.title = 'Remove';
+  remove.addEventListener('click', () => removeCandidate(candidate.id));
+
+  body.append(titleRow, actions);
+  item.append(thumbnail, body, remove);
   if (job) {
     item.append(renderProgress(job));
   }
   return item;
+}
+
+function renderThumbnail(candidate) {
+  const frame = document.createElement('div');
+  frame.className = 'thumbnail';
+
+  if (candidate.previewImageUrl) {
+    const image = document.createElement('img');
+    image.src = candidate.previewImageUrl;
+    image.alt = '';
+    frame.append(image);
+  } else {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'thumbnail-placeholder';
+    placeholder.textContent = 'VIDEO';
+    frame.append(placeholder);
+  }
+
+  const duration = formatDuration(candidate.duration);
+  if (duration) {
+    const overlay = document.createElement('span');
+    overlay.className = 'duration';
+    overlay.textContent = duration;
+    frame.append(overlay);
+  }
+
+  return frame;
+}
+
+function removeCandidate(candidateId) {
+  candidates = candidates.filter((candidate) => candidate.id !== candidateId);
+  jobsByCandidateId.delete(candidateId);
+  render();
 }
 
 async function startDownload(candidate, button) {
@@ -276,11 +320,4 @@ function labelForJob(job) {
   if (['failed', 'stopped'].includes(job.status)) return 'Retry';
   if (job.status === 'paused') return 'Paused';
   return 'Downloading';
-}
-
-function inferType(candidate) {
-  const url = candidate.url.toLowerCase();
-  if (url.includes('.m3u8')) return 'HLS';
-  if (url.includes('.mpd')) return 'DASH';
-  return 'File';
 }
