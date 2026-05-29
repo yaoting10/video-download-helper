@@ -1,4 +1,4 @@
-import { candidateKeyFor } from './candidate-model.js';
+import { candidateKeyFor, shouldShowCandidate } from './candidate-model.js';
 
 const MEDIA_EXTENSIONS = ['.m3u8', '.mpd', '.mp4', '.webm', '.mov', '.m4v', '.mkv', '.mp3', '.m4a', '.aac'];
 const MEDIA_TYPES = [
@@ -37,7 +37,7 @@ chrome.webRequest.onResponseStarted.addListener(
     const responseHeaders = headersArrayToObject(details.responseHeaders || []);
     const contentType = responseHeaders['Content-Type'] || responseHeaders['content-type'] || '';
 
-    if (!isSupportedMedia(details.url, contentType)) {
+    if (!isSupportedMedia(details.url, contentType) || !shouldShowCandidate({ url: details.url, contentType })) {
       return;
     }
 
