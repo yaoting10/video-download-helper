@@ -6,6 +6,7 @@ const stateEl = document.querySelector('#service-state');
 const candidatesEl = document.querySelector('#candidates');
 const emptyEl = document.querySelector('#empty');
 const refreshEl = document.querySelector('#refresh');
+const rescanEl = document.querySelector('#rescan');
 const clearEl = document.querySelector('#clear');
 
 let activeTab = null;
@@ -15,6 +16,7 @@ let pollTimer = null;
 
 document.addEventListener('DOMContentLoaded', init);
 refreshEl.addEventListener('click', load);
+rescanEl.addEventListener('click', rescanCurrentPage);
 clearEl.addEventListener('click', clearCandidates);
 
 async function init() {
@@ -91,6 +93,30 @@ async function clearCandidates() {
   candidates = [];
   jobsByCandidateId.clear();
   render();
+}
+
+async function rescanCurrentPage() {
+  if (!activeTab) {
+    return;
+  }
+
+  rescanEl.disabled = true;
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'rescanCurrentPage',
+      tabId: activeTab.id
+    });
+    candidates = response?.candidates || [];
+    await restoreCandidateJobs();
+    stateEl.textContent = response?.added
+      ? `Rescanned · ${response.added} item added`
+      : 'Rescanned · no new media';
+    render();
+  } catch (error) {
+    stateEl.textContent = error.message;
+  } finally {
+    rescanEl.disabled = false;
+  }
 }
 
 function render() {

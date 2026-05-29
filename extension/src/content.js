@@ -1,9 +1,14 @@
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type !== 'getVideoPreviewMetadata') {
+  if (message?.type === 'getVideoPreviewMetadata') {
+    sendResponse(findBestVideoMetadata());
     return false;
   }
 
-  sendResponse(findBestVideoMetadata());
+  if (message?.type === 'rescanVideoSources') {
+    sendResponse({ sources: findVideoSources() });
+    return false;
+  }
+
   return false;
 });
 
@@ -47,6 +52,39 @@ function readVideoMetadata(video) {
       height: window.innerHeight
     }
   };
+}
+
+function findVideoSources() {
+  return [...document.querySelectorAll('video')]
+    .flatMap((video) => readVideoSources(video))
+    .filter((source, index, all) => source.url && all.findIndex((item) => item.url === source.url) === index);
+}
+
+function readVideoSources(video) {
+  const urls = [
+    video.currentSrc,
+    video.src,
+    ...[...video.querySelectorAll('source')].map((source) => source.src)
+  ].filter(Boolean);
+  const metadata = readVideoMetadata(video) || {};
+
+  return urls.map((url) => ({
+    url,
+    contentType: guessContentType(url),
+    duration: metadata.duration || 0,
+    previewImageUrl: metadata.frameDataUrl || metadata.posterUrl || '',
+    previewRect: metadata.rect,
+    viewport: metadata.viewport
+  }));
+}
+
+function guessContentType(url) {
+  const normalized = String(url || '').toLowerCase();
+  if (normalized.includes('.m3u8')) return 'application/vnd.apple.mpegurl';
+  if (normalized.includes('.mpd')) return 'application/dash+xml';
+  if (normalized.includes('.mp4')) return 'video/mp4';
+  if (normalized.includes('.webm')) return 'video/webm';
+  return '';
 }
 
 function normalizeRect(rect) {

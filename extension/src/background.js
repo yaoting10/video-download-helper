@@ -101,6 +101,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
+  if (message?.type === 'rescanCurrentPage') {
+    rescanCurrentPage(message.tabId).then((result) => sendResponse(result));
+    return true;
+  }
+
   return false;
 });
 
@@ -133,6 +138,70 @@ function addCandidate(tabId, candidate) {
   withoutDuplicate.unshift(nextCandidate);
   candidatesByTab.set(tabId, withoutDuplicate.slice(0, MAX_CANDIDATES_PER_TAB));
   updateBadge(tabId);
+}
+
+async function rescanCurrentPage(tabId) {
+  const tab = await getTab(tabId);
+  const pageUrl = tab?.url || '';
+  const response = await sendMessageToTabFrames(tabId, { type: 'rescanVideoSources' });
+  let added = 0;
+
+  for (const source of response.flatMap((item) => item?.sources || [])) {
+    if (!isSupportedMedia(source.url, source.contentType) || !shouldShowCandidate(source)) {
+      continue;
+    }
+
+    const previewMetadata = source.previewImageUrl ? source : {
+      ...source,
+      previewImageUrl: source.previewRect && tab?.windowId
+        ? await capturePreviewRect(tab.windowId, source.previewRect, source.viewport)
+        : ''
+    };
+
+    const before = candidatesByTab.get(tabId)?.length || 0;
+    addCandidate(tabId, {
+      id: candidateKeyFor({ url: source.url, pageUrl }),
+      url: source.url,
+      pageUrl,
+      tabTitle: tab?.title || 'video',
+      contentType: source.contentType || '',
+      headers: await buildForwardHeaders({
+        mediaUrl: source.url,
+        pageUrl,
+        requestHeaders: {}
+      }),
+      ...previewMetadata,
+      discoveredAt: new Date().toISOString()
+    });
+    const after = candidatesByTab.get(tabId)?.length || 0;
+    if (after > before) {
+      added++;
+    }
+  }
+
+  return {
+    added,
+    candidates: candidatesByTab.get(tabId) || []
+  };
+}
+
+async function sendMessageToTabFrames(tabId, message) {
+  try {
+    const frames = await chrome.webNavigation.getAllFrames({ tabId });
+    return await Promise.all((frames || [{ frameId: 0 }]).map(async (frame) => {
+      try {
+        return await chrome.tabs.sendMessage(tabId, message, { frameId: frame.frameId });
+      } catch {
+        return null;
+      }
+    }));
+  } catch {
+    try {
+      return [await chrome.tabs.sendMessage(tabId, message)];
+    } catch {
+      return [];
+    }
+  }
 }
 
 function updateCandidate(tabId, candidateId, updates) {
