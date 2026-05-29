@@ -81,6 +81,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === 'clearCandidates') {
     candidatesByTab.set(message.tabId, []);
+    updateBadge(message.tabId);
     sendResponse({ ok: true });
     return false;
   }
@@ -131,8 +132,7 @@ function addCandidate(tabId, candidate) {
   const withoutDuplicate = current.filter((item) => item.id !== candidate.id);
   withoutDuplicate.unshift(nextCandidate);
   candidatesByTab.set(tabId, withoutDuplicate.slice(0, MAX_CANDIDATES_PER_TAB));
-  chrome.action.setBadgeText({ tabId, text: String(Math.min(withoutDuplicate.length, 99)) });
-  chrome.action.setBadgeBackgroundColor({ tabId, color: '#0f766e' });
+  updateBadge(tabId);
 }
 
 function updateCandidate(tabId, candidateId, updates) {
@@ -145,6 +145,18 @@ function updateCandidate(tabId, candidateId, updates) {
 function removeCandidate(tabId, candidateId) {
   const current = candidatesByTab.get(tabId) || [];
   candidatesByTab.set(tabId, current.filter((candidate) => candidate.id !== candidateId));
+  updateBadge(tabId);
+}
+
+function updateBadge(tabId) {
+  const count = candidatesByTab.get(tabId)?.length || 0;
+  chrome.action.setBadgeText({
+    tabId,
+    text: count > 0 ? String(Math.min(count, 99)) : ''
+  });
+  if (count > 0) {
+    chrome.action.setBadgeBackgroundColor({ tabId, color: '#0f766e' });
+  }
 }
 
 async function buildForwardHeaders({ mediaUrl, pageUrl, requestHeaders }) {
