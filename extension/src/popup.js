@@ -53,6 +53,29 @@ async function loadCandidates() {
   });
 
   candidates = response?.candidates || [];
+  await restoreCandidateJobs();
+  if ([...jobsByCandidateId.values()].some((job) => ['queued', 'running'].includes(job.status))) {
+    startPolling();
+  }
+}
+
+async function restoreCandidateJobs() {
+  await Promise.all(candidates.map(async (candidate) => {
+    if (!candidate.jobId && !candidate.job) {
+      return;
+    }
+
+    if (candidate.job) {
+      jobsByCandidateId.set(candidate.id, candidate.job);
+    }
+
+    if (candidate.jobId) {
+      if (!jobsByCandidateId.has(candidate.id)) {
+        jobsByCandidateId.set(candidate.id, { id: candidate.jobId, status: 'queued' });
+      }
+      await refreshJob({ id: candidate.jobId });
+    }
+  }));
 }
 
 async function clearCandidates() {
@@ -66,6 +89,7 @@ async function clearCandidates() {
   });
 
   candidates = [];
+  jobsByCandidateId.clear();
   render();
 }
 
@@ -159,6 +183,13 @@ function renderThumbnail(candidate) {
 function removeCandidate(candidateId) {
   candidates = candidates.filter((candidate) => candidate.id !== candidateId);
   jobsByCandidateId.delete(candidateId);
+  if (activeTab) {
+    chrome.runtime.sendMessage({
+      type: 'removeCandidate',
+      tabId: activeTab.id,
+      candidateId
+    });
+  }
   render();
 }
 
@@ -181,6 +212,12 @@ async function startDownload(candidate, button) {
     }
 
     jobsByCandidateId.set(candidate.id, payload.job);
+    await chrome.runtime.sendMessage({
+      type: 'markCandidateJob',
+      tabId: activeTab.id,
+      candidateId: candidate.id,
+      job: payload.job
+    });
     button.textContent = 'Queued';
     render();
     startPolling();
@@ -223,6 +260,14 @@ async function refreshJob(job) {
     for (const [candidateId, currentJob] of jobsByCandidateId) {
       if (currentJob.id === job.id) {
         jobsByCandidateId.set(candidateId, payload.job);
+        if (activeTab) {
+          chrome.runtime.sendMessage({
+            type: 'markCandidateJob',
+            tabId: activeTab.id,
+            candidateId,
+            job: payload.job
+          });
+        }
       }
     }
   } catch {
@@ -269,6 +314,12 @@ async function controlJob(candidateId, job, action) {
     }
 
     jobsByCandidateId.set(candidateId, payload.job);
+    await chrome.runtime.sendMessage({
+      type: 'markCandidateJob',
+      tabId: activeTab.id,
+      candidateId,
+      job: payload.job
+    });
     render();
     if (['resume'].includes(action)) {
       startPolling();

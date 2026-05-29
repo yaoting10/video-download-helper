@@ -1,3 +1,5 @@
+import { candidateKeyFor } from './candidate-model.js';
+
 const MEDIA_EXTENSIONS = ['.m3u8', '.mpd', '.mp4', '.webm', '.mov', '.m4v', '.mkv', '.mp3', '.m4a', '.aac'];
 const MEDIA_TYPES = [
   'application/vnd.apple.mpegurl',
@@ -51,10 +53,11 @@ chrome.webRequest.onResponseStarted.addListener(
 
     const previewMetadata = await getVideoPreviewMetadata(details.tabId, tab);
 
+    const pageUrl = tab?.url || '';
     addCandidate(details.tabId, {
-      id: `${details.requestId}:${details.url}`,
+      id: candidateKeyFor({ url: details.url, pageUrl }),
       url: details.url,
-      pageUrl: tab?.url || '',
+      pageUrl,
       tabTitle: tab?.title || 'video',
       contentType,
       headers,
@@ -82,6 +85,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
+  if (message?.type === 'removeCandidate') {
+    removeCandidate(message.tabId, message.candidateId);
+    sendResponse({ ok: true });
+    return false;
+  }
+
+  if (message?.type === 'markCandidateJob') {
+    updateCandidate(message.tabId, message.candidateId, {
+      jobId: message.job?.id || '',
+      job: message.job || null
+    });
+    sendResponse({ ok: true });
+    return false;
+  }
+
   return false;
 });
 
@@ -102,11 +120,31 @@ function isLikelyMediaUrl(url) {
 
 function addCandidate(tabId, candidate) {
   const current = candidatesByTab.get(tabId) || [];
-  const withoutDuplicate = current.filter((item) => item.url !== candidate.url);
-  withoutDuplicate.unshift(candidate);
+  const existing = current.find((item) => item.id === candidate.id);
+  const nextCandidate = {
+    ...existing,
+    ...candidate,
+    jobId: existing?.jobId || candidate.jobId || '',
+    job: existing?.job || candidate.job || null,
+    discoveredAt: existing?.discoveredAt || candidate.discoveredAt
+  };
+  const withoutDuplicate = current.filter((item) => item.id !== candidate.id);
+  withoutDuplicate.unshift(nextCandidate);
   candidatesByTab.set(tabId, withoutDuplicate.slice(0, MAX_CANDIDATES_PER_TAB));
   chrome.action.setBadgeText({ tabId, text: String(Math.min(withoutDuplicate.length, 99)) });
   chrome.action.setBadgeBackgroundColor({ tabId, color: '#0f766e' });
+}
+
+function updateCandidate(tabId, candidateId, updates) {
+  const current = candidatesByTab.get(tabId) || [];
+  candidatesByTab.set(tabId, current.map((candidate) => (
+    candidate.id === candidateId ? { ...candidate, ...updates } : candidate
+  )));
+}
+
+function removeCandidate(tabId, candidateId) {
+  const current = candidatesByTab.get(tabId) || [];
+  candidatesByTab.set(tabId, current.filter((candidate) => candidate.id !== candidateId));
 }
 
 async function buildForwardHeaders({ mediaUrl, pageUrl, requestHeaders }) {

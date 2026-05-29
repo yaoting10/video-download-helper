@@ -15,7 +15,8 @@
     "http://127.0.0.1:17321/*"
   ],
   "background": {
-    "service_worker": "src/background.js"
+    "service_worker": "src/background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
